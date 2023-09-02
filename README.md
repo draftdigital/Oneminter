@@ -1,67 +1,35 @@
-## Foundry
+# One Minter (SLOC: 391 - Audit Cost: $2360)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+One Minter is the opportunity for Projects to gather funds in advance. Our software will be a step forward in the investment options
 
-Foundry consists of:
+## How it works
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+1.- The Project manager creates a campaign through our front end. They have been pre-approved by our team based on their user account on our web2 side of things.
 
-## Documentation
+2.- When they are approved, our API generates their \_signature that will be used in the function call to createCampaign. the campaign is created on-chain. (the user does not see much of this process, it is automatic).
 
-https://book.getfoundry.sh/
+3.- Users who want to "early mint" will also use their user account on our web2 front end.
 
-## Usage
+4.- Users will also be approved by our system to buy a spot in the respective campaign with a similar \_signature process.
 
-### Build
+5.- Projects can have multiple campaigns if they like.
 
-```shell
-$ forge build
-```
+6.- When mint day comes around, the project creator / owner will execute the earlyMint function, which will transfer the ETH to their contract and air drop their NFT to everyone who bought through the earlymint campaign. (there is trust involved here, that the project will do what is expected. their contract must implement our earlyMint interface. there is an example of this in contracts/EarlyMintTestERC721A.sol
 
-### Test
+7.- This allows for projects to gauge the interest of their community by validating it with an actual purchase.
 
-```shell
-$ forge test
-```
+8.- This allows users to receive their NFT first, and without having to be awake / present at mint time.
 
-### Format
+9.- We will limit the maxOrders, fee (%), and ordersPerWallet
 
-```shell
-$ forge fmt
-```
+10.- ExternalId is a way to link the campaign to our web2 front end. The client has insisted on keeping this, despite it's gas cost
 
-### Gas Snapshots
+## ERC721A
 
-```shell
-$ forge snapshot
-```
+https://github.com/chiru-labs/ERC721A
 
-### Anvil
+The goal of ERC721A is to provide a fully compliant implementation of IERC721 with significant gas savings for minting multiple NFTs in a single transaction. This project and implementation will be updated regularly and will continue to stay up to date with best practices.
 
-```shell
-$ anvil
-```
+## solidity-campaignable
 
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
-# Oneminter
+https://www.npmjs.com/package/solidity-campaignable
