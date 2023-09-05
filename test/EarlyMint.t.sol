@@ -10,26 +10,26 @@ pragma solidity ^0.8.17;
 /*
  *
  * //// FUNCTIONS /////
- * constructor                  DONE
- * updateAuthorizerAddress      DONE
+ * constructor                     DONE
+ * updateAuthorizerAddress         DONE
  * requestRefund
- * getPriceToReserveOrders
- * createCampaign               DONE
- * getCampaignByExternalId
+ * createCampaign                  DONE
  * deleteCampaign
  * setUnMinted
- * updatePaymentAddress
- * getPaymentAddress
+ * updatePaymentAddress            DONE
  * executeMintForCampaign
  * executeMintForCampaigns
- * getPaidOrdersByCampaignId
- * getMyCampaignIDs
- * getCampaignsManagedByAddress
  * addPaidOrdersAddress
  * reserveOrder
  * updateWalletAddress
- * withdraw
- * withdrawAmount
+ * withdraw                         DONE
+ * withdrawAmount                   DONE
+ * getPriceToReserveOrders
+ * getCampaignByExternalId
+ * getPaymentAddress
+ * getPaidOrdersByCampaignId
+ * getMyCampaignIDs
+ * getCampaignsManagedByAddress
  *
  */
 
@@ -109,4 +109,13 @@ contract EarlyMintTest is Test {
         console.log("counter: ", earlyMint.campaignCounter());
         vm.stopPrank();
     }
+
+    /*
+     * Function: requestRefund()
+     * Functionality: Set the owner as msg.sender
+     * Parameters: None
+     * Requires: None
+     * Updates: authorizerAddress
+     * Calls: No
+     */
 }

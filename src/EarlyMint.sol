@@ -18,21 +18,22 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
     using Strings for uint256;
     using ECDSA for bytes32;
 
-    // @audit-info private variables cost left that public
+    // @audit-info [GAS]: private variables cost left that public
     // @audit-info check if it is possible to create getters instead
     // @audit Can we manipulate campaingCounter for a DoS attack?
+
     uint256 public campaignCounter = 0;
     address public authorizerAddress;
     mapping(uint256 => Campaign) public campaignList;
     mapping(uint256 => mapping(address => uint8)) public paidOrders;
     mapping(uint256 => address[]) public paidOrdersAddresses;
 
-    // @audit-ok AUDITED
+    // @audit-info  [Q&A]: use OZ AccessControl library to create profiles
     constructor() {
         authorizerAddress = msg.sender;
     }
 
-    // @audit-issue gas: +ii instead of i++
+    // @audit-issue [GAS]: +ii instead of i++
     modifier ensureUniqueCampaignExternalId(string memory _externalId) {
         for (uint256 i = 0; i < campaignCounter; i++) {
             require(
@@ -46,6 +47,8 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
     function updateAuthorizerAddress(address _authorizerAddress) public onlyOwner {
         authorizerAddress = _authorizerAddress;
     }
+
+    // @audit-issue transfer limited to 2300 could lead to a unexpected behaivor
 
     function requestRefund(uint256 _campaignId) public nonReentrant {
         Campaign storage campaign = campaignList[_campaignId];
@@ -61,7 +64,7 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
             Order({
                 campaignId: _campaignId,
                 purchaserAddress: msg.sender,
-                quantity: walletOrders,
+                quantity: walletOrders,00000
                 campaignOrdersTotal: campaign.ordersTotal,
                 walletOrdersTotal: 0,
                 externalId: campaign.externalId
@@ -69,45 +72,11 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         );
     }
 
-    function getPriceToReserveOrders(uint256 _campaignId, uint8 _quantity) public view returns (uint256) {
-        return campaignList[_campaignId].price * _quantity;
-    }
-
-    Campaign public cam;
-
-    ////////////////////////
-    ///    TEST       /////
-    ///////////////////////
-    function CreateCampaing2() external returns (Campaign memory) {
-        cam = Campaign(address(this), address(this), true, "1", 1, 1, 1, 1, 1, 1, 1);
-        campaignCounter++;
-        return cam;
-    }
-
-    function createCampaign3(Campaign memory _campaign) public {
-        campaignList[campaignCounter] = Campaign({
-            id: campaignCounter,
-            externalId: _campaign.externalId,
-            creator: _campaign.creator,
-            paymentAddress: _campaign.paymentAddress,
-            minted: false,
-            fee: _campaign.fee,
-            price: _campaign.price,
-            maxOrders: _campaign.maxOrders,
-            ordersTotal: 0,
-            ordersPerWallet: _campaign.ordersPerWallet,
-            campaignBalance: 0
-        });
-
-        campaignCounter++;
-    }
-
-    ////////////////////////
-    ///   END TEST       ///
-    ///////////////////////
-
-    // @audit nonReentrant??
-    // @audit authorizerAddress is public - _signature, is reusable
+    // @audit-issue [GAS]: nonReentrant is not neccesary
+    // @audit The function isValidCreate receive authorizer as a parameter
+    // @audit On the other hand, _signature, is reusable (no control, no mapping,...)
+    // @audit HIGH: ANYONE CAN PASS THE isValidCreate REQUIRE
+    // @audit-info [GAS]: ++campaignCounter instead of campaignCounter++ ()
     function createCampaign(Campaign memory _campaign, bytes memory _signature)
         public
         isValidCreate(_signature, _campaign.externalId, _campaign.fee, address(this), authorizerAddress)
@@ -137,15 +106,6 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         return campaignCounter - 1;
     }
 
-    function getCampaignByExternalId(string memory _externalId) public view returns (Campaign memory) {
-        for (uint256 i = 0; i < campaignCounter; i++) {
-            if (keccak256(abi.encodePacked(campaignList[i].externalId)) == keccak256(abi.encodePacked(_externalId))) {
-                return campaignList[i];
-            }
-        }
-        revert("Campaign not found");
-    }
-
     function deleteCampaign(uint256 _campaignId) public onlyOwner {
         delete campaignList[_campaignId];
     }
@@ -154,6 +114,7 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         campaignList[_campaignId].minted = false;
     }
 
+    // @audit-issue why the owner can update the payment address??
     function updatePaymentAddress(uint256 _campaignId, address _paymentAddress) public {
         require(_paymentAddress != address(0), "Contract address cannot be 0");
         require(
@@ -163,10 +124,8 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         campaignList[_campaignId].paymentAddress = _paymentAddress;
     }
 
-    function getPaymentAddress(uint256 _campaignId) public view returns (address) {
-        return campaignList[_campaignId].paymentAddress;
-    }
-
+    
+    // @audit-info [GAS] require address(0) is not neccesary, it was already checked
     function executeMintForCampaign(uint256 _campaignId) internal {
         require(
             campaignList[_campaignId].creator == msg.sender || msg.sender == owner(),
@@ -191,38 +150,11 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         }
     }
 
+    // @audit-info [GAS] ++i instead of i++
     function executeMintForCampaigns(uint256[] memory _campaignIds) public nonReentrant {
         for (uint256 i = 0; i < _campaignIds.length; i++) {
             executeMintForCampaign(_campaignIds[i]);
         }
-    }
-
-    function getPaidOrdersByCampaignId(uint256 _campaignId) public view returns (address[] memory) {
-        return paidOrdersAddresses[_campaignId];
-    }
-
-    function getMyCampaignIDs() public view returns (uint256[] memory) {
-        uint256[] memory campaigns = new uint256[](campaignCounter);
-        uint256 counter = 0;
-        for (uint256 i = 0; i < campaignCounter; i++) {
-            if (campaignList[i].creator == msg.sender) {
-                campaigns[counter] = i;
-                counter++;
-            }
-        }
-        return campaigns;
-    }
-
-    function getCampaignsManagedByAddress(address _creator) public view returns (uint256[] memory) {
-        uint256[] memory campaigns = new uint256[](campaignCounter);
-        uint256 counter = 0;
-        for (uint256 i = 0; i < campaignCounter; i++) {
-            if (campaignList[i].creator == _creator) {
-                campaigns[counter] = i;
-                counter++;
-            }
-        }
-        return campaigns;
     }
 
     function addPaidOrdersAddress(uint256 _campaignId, address _paidOrdersAddress) internal {
@@ -238,6 +170,7 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         }
     }
 
+    // @audit-ok
     function reserveOrder(uint256 _campaignId, uint8 _requestedOrderQuantity, bytes memory _signature)
         public
         payable
@@ -269,12 +202,15 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         );
     }
 
+    // @audit-info [GAS] no calls -> nonReentrant innecesary
     function updateWalletAddress(uint256 _campaignId, address _newAddress) public nonReentrant {
         require(paidOrders[_campaignId][msg.sender] > 0, "You must own at least 1 order to update your address");
         paidOrders[_campaignId][_newAddress] = paidOrders[_campaignId][msg.sender];
         delete paidOrders[_campaignId][msg.sender];
     }
 
+    // @audit-info it is very confusing to use the word "owner" for a call success
+    // @audit-info It is not neccesary 2 functions for the same porpuse
     function withdraw() public onlyOwner {
         (bool owner,) = payable(owner()).call{value: address(this).balance}("");
         require(owner);
@@ -285,4 +221,87 @@ contract EarlyMint is ReentrancyGuard, Ownable, Campaignable {
         (bool owner,) = payable(owner()).call{value: _amount}("");
         require(owner);
     }
+
+    ///////////////////////////
+    //     GETTERS       /////
+    //////////////////////////
+
+    function getPriceToReserveOrders(uint256 _campaignId, uint8 _quantity) public view returns (uint256) {
+        return campaignList[_campaignId].price * _quantity;
+    }
+
+    function getCampaignByExternalId(string memory _externalId) public view returns (Campaign memory) {
+        for (uint256 i = 0; i < campaignCounter; i++) {
+            if (keccak256(abi.encodePacked(campaignList[i].externalId)) == keccak256(abi.encodePacked(_externalId))) {
+                return campaignList[i];
+            }
+        }
+        revert("Campaign not found");
+    }
+
+    function getPaymentAddress(uint256 _campaignId) public view returns (address) {
+        return campaignList[_campaignId].paymentAddress;
+    }
+
+    function getPaidOrdersByCampaignId(uint256 _campaignId) public view returns (address[] memory) {
+        return paidOrdersAddresses[_campaignId];
+    }
+
+    function getMyCampaignIDs() public view returns (uint256[] memory) {
+        uint256[] memory campaigns = new uint256[](campaignCounter);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < campaignCounter; i++) {
+            if (campaignList[i].creator == msg.sender) {
+                campaigns[counter] = i;
+                counter++;
+            }
+        }
+        return campaigns;
+    }
+
+    function getCampaignsManagedByAddress(address _creator) public view returns (uint256[] memory) {
+        uint256[] memory campaigns = new uint256[](campaignCounter);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < campaignCounter; i++) {
+            if (campaignList[i].creator == _creator) {
+                campaigns[counter] = i;
+                counter++;
+            }
+        }
+        return campaigns;
+    }
+
+    ////////////////////////
+    ///    TEST       /////
+    ///////////////////////
+
+    Campaign public cam;
+
+    function CreateCampaing2() external returns (Campaign memory) {
+        cam = Campaign(address(this), address(this), true, "1", 1, 1, 1, 1, 1, 1, 1);
+        campaignCounter++;
+        return cam;
+    }
+
+    function createCampaign3(Campaign memory _campaign) public {
+        campaignList[campaignCounter] = Campaign({
+            id: campaignCounter,
+            externalId: _campaign.externalId,
+            creator: _campaign.creator,
+            paymentAddress: _campaign.paymentAddress,
+            minted: false,
+            fee: _campaign.fee,
+            price: _campaign.price,
+            maxOrders: _campaign.maxOrders,
+            ordersTotal: 0,
+            ordersPerWallet: _campaign.ordersPerWallet,
+            campaignBalance: 0
+        });
+
+        campaignCounter++;
+    }
+
+    ////////////////////////
+    ///   END TEST       ///
+    ///////////////////////
 }
