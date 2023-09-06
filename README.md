@@ -1,6 +1,35 @@
-# One Minter (SLOC: 391 - Audit Cost: $2360)
+# TABLE OF CONTENTS
+
+- [TABLE OF CONTENTS](#table-of-contents)
+- [One Minter](#one-minter)
+  - [Invoice: SLOC: 391 - Audit Cost: $2360](#invoice-sloc-391---audit-cost-2360)
+  - [How it works](#how-it-works)
+  - [ERC721A](#erc721a)
+- [VULNERABILITIES](#vulnerabilities)
+  - [High](#high)
+    - [\[H-01\] For loop in ensureUniqueCampaignExternalId() could lead to a DoS attack](#h-01-for-loop-in-ensureuniquecampaignexternalid-could-lead-to-a-dos-attack)
+    - [\[H-02\] For loop in executeMintForCampaign() could lead to a DoS attack](#h-02-for-loop-in-executemintforcampaign-could-lead-to-a-dos-attack)
+    - [\[H-03\] Not checking \_requestedOrderQuantity != 0 could lead to a DoS attack](#h-03-not-checking-_requestedorderquantity--0-could-lead-to-a-dos-attack)
+  - [\[H-03\] Malicious Campaign Creator can steal funds instead of minting NFTs passively or by frontrunning](#h-03-malicious-campaign-creator-can-steal-funds-instead-of-minting-nfts-passively-or-by-frontrunning)
+  - [Medium](#medium)
+  - [Low](#low)
+  - [QA](#qa)
+    - [\[QA-01\] Floating Pragma Solidity Version could lead to a potential vulnerability](#qa-01-floating-pragma-solidity-version-could-lead-to-a-potential-vulnerability)
+    - [\[QA-02\] Consider declaring functions as `external`](#qa-02-consider-declaring-functions-as-external)
+    - [\[QA-03\] Private variables cost less gass than public](#qa-03-private-variables-cost-less-gass-than-public)
+    - [\[QA-04\] Use of the Open Zeppelin Access Control Library to create profiles](#qa-04-use-of-the-open-zeppelin-access-control-library-to-create-profiles)
+    - [\[QA-05\] Use ++variable rather than variable++ to save gass](#qa-05-use-variable-rather-than-variable-to-save-gass)
+    - [\[QA-06\] Repeated access to loop break condition](#qa-06-repeated-access-to-loop-break-condition)
+    - [\[QA-07\] Unnecesary variable initialization](#qa-07-unnecesary-variable-initialization)
+    - [\[QA-08\] Using `memory` for read-only parameters](#qa-08-using-memory-for-read-only-parameters)
+    - [\[QA-09\] Use a Pointer instead of accessing mapping multiple times and cache values when possible](#qa-09-use-a-pointer-instead-of-accessing-mapping-multiple-times-and-cache-values-when-possible)
+    - [\[QA-10\] `reserveOrder()` accepts overpayment](#qa-10-reserveorder-accepts-overpayment)
+
+# One Minter
 
 One Minter is the opportunity for Projects to gather funds in advance. Our software will be a step forward in the investment options
+
+## Invoice: SLOC: 391 - Audit Cost: $2360
 
 ## How it works
 
@@ -34,29 +63,7 @@ The goal of ERC721A is to provide a fully compliant implementation of IERC721 wi
 
 https://www.npmjs.com/package/solidity-campaignable
 
-# FINDINGS
-
-- [One Minter (SLOC: 391 - Audit Cost: $2360)](#one-minter-sloc-391---audit-cost-2360)
-  - [How it works](#how-it-works)
-  - [ERC721A](#erc721a)
-- [FINDINGS](#findings)
-  - [High](#high)
-    - [\[H-01\] For loop in ensureUniqueCampaignExternalId() could lead to a DoS attack](#h-01-for-loop-in-ensureuniquecampaignexternalid-could-lead-to-a-dos-attack)
-  - [Medium](#medium)
-  - [Low](#low)
-  - [QA](#qa)
-    - [\[QA-01\] Floating Pragma Solidity Version could lead to a potential vulnerability](#qa-01-floating-pragma-solidity-version-could-lead-to-a-potential-vulnerability)
-    - [\[QA-02\] Consider declaring functions as `external`](#qa-02-consider-declaring-functions-as-external)
-    - [\[QA-03\] Private variables cost less gass than public](#qa-03-private-variables-cost-less-gass-than-public)
-    - [\[QA-04\] Use of the Open Zeppelin Access Control Library to create profiles](#qa-04-use-of-the-open-zeppelin-access-control-library-to-create-profiles)
-    - [\[QA-05\] Use ++variable rather than variable++ to save gass](#qa-05-use-variable-rather-than-variable-to-save-gass)
-    - [\[QA-06\] Repeated access to loop break condition](#qa-06-repeated-access-to-loop-break-condition)
-    - [\[QA-07\] Unnecesary variable initialization](#qa-07-unnecesary-variable-initialization)
-    - [\[QA-08\] Using `memory` for read-only parameters](#qa-08-using-memory-for-read-only-parameters)
-    - [\[QA-09\] Use a Pointer instead of accessing mapping multiple times and cache values when possible](#qa-09-use-a-pointer-instead-of-accessing-mapping-multiple-times-and-cache-values-when-possible)
-    - [\[QA-10\] `reserveOrder()` accepts overpayment](#qa-10-reserveorder-accepts-overpayment)
-
-`reserveOrder()` accepts overpayment
+# VULNERABILITIES
 
 ## High
 
@@ -88,6 +95,32 @@ modifier ensureUniqueCampaignExternalId(string memory _externalId) {
     _;
 }
 ```
+
+### [H-02] For loop in executeMintForCampaign() could lead to a DoS attack
+
+- The function ` executeMintForCampaign()` loops through all the Campaign participants as per `paidOrdersAddresses` array. This means that with enough participants, the function can run out of gas and revert. This situation would perpetually lock the `executeMintForCampaign()` for this Campaign, and given that there is no logic to remove users from the `paidOrdersAddresses` paidOrdersAddresses array, the Campaign would be stuck in this state forever.
+- It would seem that this scenario would be prevented by the Campaign's `maxOrders` and `ordersPerWallet`, but both of these variables are typed `uint256` and are only verified to be greater than 0 on Campaign creation, with no upper bound. This opens the possibility for Campaigns to be created with values that are large enough that could allow enough users to participate in the Campaign and brick the minting process from OOG when trying to loop over all addressesin `paidOrdersAddresses`, similar to [H-01](#h-01-dos---earlymint-can-be-rendered-unable-to-create-new-campaigns-the-more-they-are-created)
+
+Mitigation:
+
+- Consider dividing the minting process into batches and keeping track of the users that were included in the minting process in order to avoid re-minting the same users in following batches.
+
+### [H-03] Not checking \_requestedOrderQuantity != 0 could lead to a DoS attack
+
+- The function `reserveOrder()` does not check `_requestedOrderQuantity()` to be greater than 0. This function can execute with `_requestedOrderQuantity` set to 0, which will add the user to the `paidOrdersAddresses` array, but will not increase the `ordersTotal` variable. This means that an attacker can add themselves to the `paidOrdersAddresses` array without increasing the `ordersTotal` variable, and thus the attacker can add themselves and many other addresses to the `paidOrdersAddresses` array an unlimited amount of times, which will eventually cause the `executeMintForCampaign()` function to run out of gas and revert.
+
+Mitigation:
+
+- Fix the `reserveOrder()` function to revert if `_requestedOrderQuantity` is 0.
+
+## [H-03] Malicious Campaign Creator can steal funds instead of minting NFTs passively or by frontrunning
+
+Affected Functions:
+
+- `executeMintForCampaign()`
+- `updatePaymentAddress()`
+
+Description:
 
 ## Medium
 
